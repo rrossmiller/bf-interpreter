@@ -13,11 +13,11 @@ pub const Runner = struct {
     pub fn init(f: std.fs.File) Runner {
         var rtn = std.mem.zeroes(Runner);
         rtn.reader = f.reader();
-
         return rtn;
     }
 
-    pub fn run(_: Runner) !void {}
+    pub fn run(r: Runner) !void {
+        r.reader.readAllAlloc();
+    }
 
-    fn op(_: Runner) void {}
 };

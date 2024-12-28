@@ -10,8 +10,6 @@ pub fn main() !void {
     var f = try std.fs.cwd().openFile(fname, .{});
     defer f.close();
 
-    const reader = f.reader();
     const runner = run.Runner.init(f);
-    try runner.run(reader);
-    // try runner.run(f);
+    try runner.run();
 }
