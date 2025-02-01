@@ -1,5 +1,5 @@
 {
-    "venvPath": "/Users/robrossmiller/.venv/",
+    "venvPath": "/Users/robrossmiller/.venvs/",
     "venv": "ml",
     "typeCheckingMode": "off"
 }
