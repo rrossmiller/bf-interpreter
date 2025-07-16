@@ -1,7 +1,11 @@
+import argparse
 import os
-import sys
+import re
+import time
 
-from tqdm import tqdm
+from opcodes import OPCODES_MAP, OpCode
+
+LANG = "+-<>.,[]!"
 
 
 class bcolors:
@@ -16,102 +20,136 @@ class bcolors:
     UNDERLINE = "\033[4m"
 
 
-def rm_extra_chars(src):
-    lang = "+-<>.,[]"
-    return list(filter(lambda x: x in lang, src))
-
-
-def print_src(src, idx):
-    out = "["
+def debug_print(src, idx):
+    output = "["
     for i, s in enumerate(src):
         if i == idx:
-            out += bcolors.FAIL + f'"{s}", ' + bcolors.ENDC
+            output += bcolors.FAIL + f'"{s}"' + bcolors.ENDC
         else:
-            out += f"'{s}', "
+            output += f"'{s}'"
+        output += ", "
+
     # remove trailing space and ,
-    out = out[:-2]
-    out += " ]"
-    print(out)
+    output = output[:-2]
+    output += " ]"
+    print(output)
 
 
-def run(s: str, step=False):
-    src = rm_extra_chars(s)
-    t = tqdm(total=len(s))
+def call_debug(debug, i, ptr, mem, output):
+    debug_print(debug, i)
+    print(f"{ptr= }")
+    print(mem)
+    print(f"output:\n{output}")
 
-    # data = [0 for _ in range(512)]
-    # data = [0 for _ in range(30)]
-    data = [0 for _ in range(1_000_000)]
-    idx = 0
+
+def load_file(p: str):
+    with open(p) as f:
+        contents = f.read()
+
+    src = [OPCODES_MAP[c] for c in filter(lambda x: x in LANG, contents)]
+    return src
+
+
+def get_jump_table(src):
+    jump_table = {}
+    stack = []
+    for i, c in enumerate(src):
+        match c:
+            case OpCode.LOOP_START:
+                stack.append((i, c))
+            case OpCode.LOOP_END:
+                prev_i, prev = stack.pop()
+                if prev != OpCode.LOOP_START:
+                    return None
+                jump_table[i] = prev_i
+                jump_table[prev_i] = i
+
+    if len(stack) > 0:
+        return None
+    return jump_table
+
+
+def run(src: list[OpCode], jmp_table: dict, debug=""):
+    stack = []
     i = 0
-    loop = []
-    # for i in range(len(src)):
-    out = ""
-    while i < len(src):
-        t.reset(total=len(s))
-        t.update(i)
-        t.display()
-        c = src[i]
 
-        if step:
-            print_src(src, i)
-            print(i, c)
-            print(idx, data[idx])
-            print(data)
-            print(loop)
-            print()
-            # input("continue...")
+    ptr = 0
+    mem = [0]
+    output = ""
+    while i < len(src):
+        code = src[i]
+        if debug:
+            call_debug(debug, i, ptr, mem, output)
+            # input()
+            time.sleep(0.02)
             print("\033[2J")
             print("\033[H")
-
-        match c:
-            case "+":
-                data[idx] += 1
-            case "-":
-                data[idx] -= 1
-            case "<":
-                idx = idx - 1 if idx > 0 else len(src) - 1
-            case ">":
-                idx = idx + 1 if idx < len(src) - 1 else 0
-            case ".":
-                # print(f"{data[idx]}")
-                out += chr(data[idx])
-            case ",":
-                inp = input("> ")
-                data[idx] = int(inp)
-            case "[":
-                # If the byte at the data pointer is zero,
-                # then instead of moving the instruction pointer forward to the next command,
-                # jump it forward to the command after the matching ] command.
-                if data[idx] == 0:
-                    i = src.index("]", i)
-                    continue
+        match code:
+            case OpCode.INCR_PTR:
+                ptr += 1
+                if ptr + 1 > len(mem):
+                    mem.append(0)
+            case OpCode.DECR_PTR:
+                ptr -= 1
+                if ptr < 0:
+                    if debug:
+                        call_debug(debug, i, ptr, mem, output)
+                    raise IndexError("Pointer moved to negative index")
+            case OpCode.INCR:
+                mem[ptr] += 1
+            case OpCode.DECR:
+                mem[ptr] -= 1
+                if mem[ptr] < 0:
+                    if debug:
+                        call_debug(debug, i, ptr, mem, output)
+                    raise IndexError(f"Memory cannot be < 0")
+            case OpCode.OUTPUT:
+                output += chr(mem[ptr])
+            case OpCode.INPUT:
+                mem[ptr] = ord(input("Input a single character: ")[0])
+            case OpCode.EXIT:
+                call_debug(debug, i, ptr, mem, output)
+                exit()
+            case OpCode.LOOP_START:
+                # jump to next ]
+                if mem[ptr] == 0:
+                    i = jmp_table[i]
                 else:
-                    loop.append(i)
-            case "]":
-                # If the byte at the data pointer is nonzero,
-                # then instead of moving the instruction pointer forward to the next command,
-                # jump it back to the command after the matching [ command.
-                if data[idx] > 0:
-                    i = loop[-1]
-                    continue
+                    stack.append(i)
+            case OpCode.LOOP_END:
+                # jump back to [
+                if mem[ptr] != 0:
+                    i = jmp_table[i]
                 else:
-                    loop.pop()
+                    stack.append(i)
         i += 1
-    print(out)
+
+    if debug:
+        call_debug(debug, i, ptr, mem, output)
+    else:
+        print(output)
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        exit(1)
-    elif not os.path.exists(sys.argv[1]):
-        print(sys.argv[1], "does not exist")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("path", default="fib.bf", type=str, nargs="?")
+    parser.add_argument("--debug", "-d", action="store_true")
+
+    args = parser.parse_args()
+    path = args.path
+    if not os.path.exists(path):
+        print(f'"{path}" does not exist')
         exit(1)
 
-    with open(sys.argv[1]) as f:
-        src = f.read()
+    src = load_file(path)
+    debug_src = ""
+    if args.debug:
+        with open(path) as f:
+            debug_src = f.read()
+        debug_src = list(filter(lambda x: x in LANG, debug_src))
 
-    print("\033[2J")
-    print("\033[H")
-    print("*********")
-    # run(src, step=True)
-    run(src)
+    jmp = get_jump_table(src)
+    if not jmp:
+        print("Invalid program. Unbalanced brackets.")
+        exit(1)
+    run(src, jmp, debug_src)
