@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -10,6 +11,11 @@ import (
 const lang = "+-<>[],."
 
 func main() {
+	debug := false
+	flag.BoolVar(&debug, "d", false, "debug")
+
+	fmt.Println(debug)
+	return
 	fname := os.Args[1]
 	src := readFile(fname)
 	step := true
