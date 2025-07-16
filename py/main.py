@@ -69,7 +69,6 @@ def get_jump_table(src):
 
 
 def run(src: list[OpCode], jmp_table: dict, debug=""):
-    stack = []
     i = 0
 
     ptr = 0
@@ -113,14 +112,10 @@ def run(src: list[OpCode], jmp_table: dict, debug=""):
                 # jump to next ]
                 if mem[ptr] == 0:
                     i = jmp_table[i]
-                else:
-                    stack.append(i)
             case OpCode.LOOP_END:
                 # jump back to [
                 if mem[ptr] != 0:
                     i = jmp_table[i]
-                else:
-                    stack.append(i)
         i += 1
 
     if debug:

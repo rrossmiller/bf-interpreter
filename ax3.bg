@@ -1,4 +1,5 @@
-97
+print "a" 3 times
+
 +++
 [>
     +++++++++ loop 9 times 10
