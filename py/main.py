@@ -1,6 +1,5 @@
 import argparse
 import os
-import re
 import time
 
 from opcodes import OPCODES_MAP, OpCode
