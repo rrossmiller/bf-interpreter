@@ -8,33 +8,27 @@ import (
 	"strings"
 )
 
-const lang = "+-<>[],."
+const lang = "+-<>[],.!"
 
 func main() {
 	debug := false
 	flag.BoolVar(&debug, "d", false, "debug")
+	flag.Parse()
+	args := flag.Args()
 
-	fmt.Println(debug)
-	return
-	fname := os.Args[1]
+	if len(args) != 1 {
+		fmt.Println("You must supply a file path")
+		flag.Usage()
+		return
+	}
+	fname := args[0]
 	src := readFile(fname)
-	step := true
-	step = false
-	r := Runner{step: step}
-	r.run(src)
-	fmt.Println()
-	// t := []int{1, 2, 3, 4}
-	// //pop
-	// a := t[len(t)-1]
-	// t = t[:len(t)-1]
-	// fmt.Println(a, t)
-	// //push
-	// t = append(t, 1)
-	// fmt.Println(t)
-	// //pop
-	// a = t[len(t)-1]
-	// t = t[:len(t)-1]
-	// fmt.Println(a, t)
+
+	err := run(src, debug)
+	if err != nil {
+		panic(err)
+	}
+
 }
 
 func readFile(fp string) []rune {
