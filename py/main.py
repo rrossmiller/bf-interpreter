@@ -125,6 +125,7 @@ def run(src: list[OpCode], jmp_table: dict, debug=""):
 
 
 if __name__ == "__main__":
+    print("python")
     parser = argparse.ArgumentParser()
     parser.add_argument("path", default="fib.bf", type=str, nargs="?")
     parser.add_argument("--debug", "-d", action="store_true")
@@ -142,8 +143,10 @@ if __name__ == "__main__":
             debug_src = f.read()
         debug_src = list(filter(lambda x: x in LANG, debug_src))
 
+    start = time.perf_counter()
     jmp = get_jump_table(src)
     if not jmp:
         print("Invalid program. Unbalanced brackets.")
         exit(1)
     run(src, jmp, debug_src)
+    print(f"elapsed: {(time.perf_counter() - start) * 1000 * 1000:.3f}µs")
