@@ -6,12 +6,14 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 )
 
 const lang = "+-<>[],.!"
 
 func main() {
 	debug := false
+	fmt.Println("go")
 	flag.BoolVar(&debug, "d", false, "debug")
 	flag.Parse()
 	args := flag.Args()
@@ -24,10 +26,12 @@ func main() {
 	fname := args[0]
 	src := readFile(fname)
 
+	start := time.Now()
 	err := run(src, debug)
 	if err != nil {
 		panic(err)
 	}
+	fmt.Printf("elapsed: %v\n", time.Since(start))
 
 }
 

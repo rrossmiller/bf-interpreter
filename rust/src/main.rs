@@ -1,8 +1,9 @@
 use core::panic;
-use std::{self, fs, io::Read, path};
+use std::{self, fs, io::Read, path, time};
 
 mod run;
-fn main() {
+fn main() -> Result<(), run::BfiError> {
+    println!("rust");
     let mut args = std::env::args();
     if args.len() < 2 {}
     let file_path = if let Some(a) = args.nth(1) {
@@ -13,9 +14,11 @@ fn main() {
     };
     let file_path = path::Path::new(&file_path);
     let src = read_file(file_path);
-    // println!("{}", src);
-    let mut runner = run::Runner::init(src);
-    runner.run();
+
+    let start = time::Instant::now();
+    run::run(src)?;
+    println!("elapsed: {:?}", time::Instant::now().duration_since(start));
+    Ok(())
 }
 
 fn read_file(fp: &std::path::Path) -> String {

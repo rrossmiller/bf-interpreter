@@ -4,3 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+thiserror ="2.0.12"
+
+[features]
+default = []         # No features enabled by default
+debug-mode = []      # Optional debug flag

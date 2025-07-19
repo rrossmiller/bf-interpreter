@@ -17,5 +17,5 @@
 +++ .                   print 'r'
 ----- - .               print 'l'
 ----- --- .             print 'd'
-> + .                   print '!'
+> + .                   print 'exclaimation'
 > .                     print 'eol'

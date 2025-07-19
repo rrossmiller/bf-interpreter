@@ -1,91 +1,167 @@
-use std::process::Command;
-use std::{io, usize};
+use std::{collections::HashMap, thread::sleep, time};
+use thiserror::Error;
 
-#[derive(Debug)]
-pub struct Runner {
-    i: usize,
-    loop_i: Vec<usize>,
-    cursor: usize,
-    state: [u8; 256],
-    src: String,
-    out: String,
-    step: bool,
+const LANG: &str = "+-<>[],.!";
+const ESC: &str = "\x1b";
+const WAIT_TIME: time::Duration = time::Duration::from_millis(10);
+
+#[derive(Error, Debug)]
+pub enum BfiError {
+    #[error("Custom error: {0}")]
+    InvalidProgram(String),
+
+    #[error("Custom error: {0}")]
+    RuntimeErr(String),
+}
+// fn get_jump_table(src: &Vec<u8>) -> Result<HashMap<usize, usize>, BfiError> {
+// let mut jump_table = HashMap::new();
+fn get_jump_table(src: &Vec<u8>) -> Result<Vec<Option<usize>>, BfiError> {
+    let mut jump_table = vec![None; src.len()];
+
+    let mut stack: Vec<usize> = Vec::new();
+    for (i, c) in src.iter().enumerate() {
+        match c {
+            b'[' => stack.push(i),
+            b']' => {
+                if let Some(tkn) = stack.pop() {
+                    // jump_table.insert(i, tkn);
+                    // jump_table.insert(tkn, i);
+                    jump_table[i] = Some(tkn);
+                    jump_table[tkn] = Some(i);
+                } else {
+                    return Err(BfiError::InvalidProgram(
+                        "Invalid program. Unmatched brackets".to_string(),
+                    ));
+                }
+            }
+            _ => {}
+        }
+    }
+    if stack.len() > 0 {
+        return Err(BfiError::InvalidProgram(
+            "Invalid program. Unmatched brackets".to_string(),
+        ));
+    }
+    Ok(jump_table)
 }
 
-const LANG: &str = "+-<>.,[]";
-impl Runner {
-    pub fn init(src: String) -> Runner {
-        Runner {
-            i: 0,
-            loop_i: Vec::new(),
-            cursor: 0,
-            state: [0; 256],
-            src,
-            out: String::new(),
-            step: false,
+fn debug_print(src: &Vec<u8>, idx: usize) {
+    let mut out = String::from("[");
+    for (i, c) in src.iter().enumerate() {
+        if i == idx {
+            out.push_str(ESC);
+            out.push_str("[91m");
+            // out.push('"');
+            out.push(*c as char);
+            // out.push('"');
+            out.push_str(ESC);
+            out.push_str("[0m");
+        } else {
+            out.push(*c as char);
         }
+        out.push_str(", ");
     }
-    pub fn run(self: &mut Runner) {
-        if self.step {
-            Command::new("clear").status().unwrap();
-        }
-        let chars = self
-            .src
-            .chars()
-            .filter(|e| LANG.contains(*e))
-            .collect::<Vec<_>>();
-        // chars.iter().enumerate().for_each(|(i, e)| {
-        //     if i < 50 {
-        //         println!("{i}: {e}");
-        //     }
-        // });
-        // println!(".............\n{:?}", chars);
-        while self.i < chars.len() {
-            let c = chars[self.i];
-            if self.step {
-                println!("{} | {}: {}", self.cursor, c, self.i);
-                println!("{:?}", self.state);
-                // println!("=> {}", self.out);
-                // let _ = io::stdin().read_line(&mut String::new());
-                // Command::new("clear").status().unwrap();
+    out = String::from(&out[..out.len() - 2]);
+    out.push(']');
+
+    println!("{}", out);
+}
+
+fn call_debug_print(
+    src: &Vec<u8>,
+    idx: usize,
+    ptr: usize,
+    mem: &Vec<u8>,
+    out: &String,
+    clear: bool,
+) {
+    debug_print(src, idx);
+    println!("{ptr}");
+    println!("mem: {:?}", mem);
+    println!("{}", out);
+    sleep(WAIT_TIME);
+    if clear {
+    print!("\x1b[2J");
+        print!("\x1b[H")
+    }
+}
+
+pub fn run(src: String) -> Result<(), BfiError> {
+    let chars: Vec<u8> = src.bytes().filter(|b| LANG.contains(*b as char)).collect();
+
+    let jmp = get_jump_table(&chars)?;
+    let mut i: usize = 0;
+    let mut ptr = 0;
+    let mut mem: Vec<u8> = Vec::from([0; 32]);
+    let mut output = String::with_capacity(100);
+
+    while i < chars.len() {
+        let c = chars[i as usize];
+        #[cfg(feature = "debug-mode")]
+        call_debug_print(&chars, i, ptr, &mem, &output, true);
+        match c {
+            // '+' => mem[ptr] += 1,
+            b'+' => unsafe {
+                *mem.get_unchecked_mut(ptr) += 1;
+            },
+            // '-' => mem[ptr] -= 1,
+            b'-' => unsafe {
+                *mem.get_unchecked_mut(ptr) -= 1;
+            },
+            b'>' => {
+                ptr += 1;
+                if ptr + 1 > mem.len() {
+                    mem.push(0);
+                }
             }
-            match c {
-                '+' => {
-                    if self.state[self.cursor] == 255 {
-                        self.state[self.cursor] = 0;
-                    } else {
-                        self.state[self.cursor] += 1
-                    };
+            b'<' => {
+                if ptr == 0 {
+                    return Err(BfiError::RuntimeErr(
+                        "Pointer moved to a negative index".to_string(),
+                    ));
                 }
-                '-' => {
-                    if self.state[self.cursor] == 0 {
-                        self.state[self.cursor] = 255;
-                    } else {
-                        self.state[self.cursor] -= 1
-                    };
+                ptr -= 1;
+            }
+            b'.' => {
+                // output.push(mem[ptr] as char);
+                unsafe {
+                    output.push(*mem.get_unchecked(ptr) as char);
                 }
-                '>' => self.cursor += 1,
-                '<' => self.cursor -= 1,
-                '.' => {
-                    self.out.push(self.state[self.cursor] as char);
-                    if !self.step {
-                        print!("{}", self.state[self.cursor] as char);
+                #[cfg(feature = "debug-mode")]
+                call_debug_print(&chars, i, ptr, &mem, &output, true);
+            }
+            b'!' => break,
+            b'[' => {
+                // jump to next ]
+                // if mem[ptr] == 0 {
+                //     // i = *jmp.get(&i).unwrap();
+                //     i = jmp[&i];
+                // }
+                unsafe {
+                    if *mem.get_unchecked(ptr) == 0 {
+                        // i = jmp[&i];
+                        i = jmp[i].unwrap();
                     }
                 }
-                ',' => {
-                    //user input
-                }
-                '[' => self.loop_i.push(self.i),
-                ']' => {
-                    if self.state[self.cursor] > 0 {
-                        self.i = *self.loop_i.last().unwrap();
-                    } else {
-                        self.loop_i.pop();
+            }
+            b']' => {
+                // jump back to [
+                // if mem[ptr] != 0 {
+                //     i = *jmp.get(&i).unwrap();
+                // }
+                unsafe {
+                    if *mem.get_unchecked(ptr) != 0 {
+                        i = jmp[i].unwrap();
                     }
                 }
-                _ => {}
             }
-            self.i += 1;
+            _ => unreachable!(),
         }
+        i += 1;
     }
+
+    #[cfg(feature = "debug-mode")]
+    call_debug_print(&chars, i, ptr, &mem, &output, false);
+    println!("{}", output);
+    Ok(())
 }
