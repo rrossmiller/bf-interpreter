@@ -7,7 +7,7 @@ time to run hello world:
 | python | 138.583µs |
 | go     | 8.166µs   |
 | rust   | 11.166µs  |
-| zig    | 6 µs      |
+| zig    | 6.416 µs  |
 
 todo
 - c

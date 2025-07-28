@@ -32,7 +32,7 @@ pub fn main() !void {
     defer allocator.free(src);
     var timer = try std.time.Timer.start();
     try run.run(allocator, src, stdout);
-    const elapsed_ns = timer.read();
+    const elapsed_ns: f64 = @floatFromInt(timer.read());
     try stdout.print("elapsed: {d} µs\n", .{elapsed_ns / 1000});
 }
 
