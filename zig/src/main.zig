@@ -26,7 +26,6 @@ pub fn main() !void {
         std.debug.print("Usage: ./bfi <path>\n", .{});
         return;
     };
-
     args.deinit();
 
     const src = try readFile(allocator, path);

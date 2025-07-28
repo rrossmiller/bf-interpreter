@@ -1,67 +1,66 @@
 const std = @import("std");
 const LANG = "+-<>[],.!";
+const IN_LANG_TABLE = blk: {
+    var table = [_]bool{false} ** 256;
+    for (LANG) |c| table[c] = true;
+    break :blk table;
+};
 fn inLang(char: u8) bool {
-    for (LANG) |c| {
-        if (c == char) {
-            return true;
-        }
-    }
-    return false;
+    return IN_LANG_TABLE[char];
 }
 
 pub fn run(allocator: std.mem.Allocator, contents: []u8, writer: std.fs.File.Writer) !void {
-    const l = filter(contents);
-    const src = contents[0..l];
-
-    var jl = std.AutoHashMap(usize, usize).init(allocator);
+    const src = filter(contents);
+    var jl = try allocator.alloc(usize, src.len);
+    defer allocator.free(jl);
     try makeJumpList(allocator, src, &jl);
-    defer jl.deinit();
 
     var i: usize = 0;
     var ptr: usize = 0;
-    var mem = try std.ArrayList(u8).initCapacity(allocator, 128);
-    defer mem.deinit();
-    try mem.append(0);
+    var mem: [3000]u8 = [_]u8{0} ** 3000;
 
-    var output = try std.ArrayList(u8).initCapacity(allocator, 128);
-    defer output.deinit();
+    var output: [512]u8 = undefined;
+    var output_len: usize = 0;
 
     while (i < src.len) : (i += 1) {
         const code = src[i];
         switch (code) {
-            '+' => mem.items[ptr] += 1,
-            '-' => mem.items[ptr] -= 1,
+            '+' => mem[ptr] += 1,
+            '-' => mem[ptr] -= 1,
             '>' => {
                 ptr += 1;
-                if (ptr + 1 > mem.items.len) {
-                    try mem.append(0);
+                if (ptr + 1 > mem.len) {
+                    unreachable; //todo throw error
                 }
             },
             '<' => {
-                ptr -= 1;
-                if (ptr < 0) {
-                    unreachable;
+                if (ptr == 0) {
+                    unreachable; //todo throw error
                 }
+                ptr -= 1;
             },
-            '.' => try output.append(mem.items[ptr]),
+            '.' => {
+                output[output_len] = mem[ptr];
+                output_len += 1;
+            },
             '!' => break,
             '[' => {
-                if (mem.items[ptr] == 0) {
-                    i = jl.get(i).?;
+                if (mem[ptr] == 0) {
+                    i = jl[i];
                 }
             },
             ']' => {
-                if (mem.items[ptr] != 0) {
-                    i = jl.get(i).?;
+                if (mem[ptr] != 0) {
+                    i = jl[i];
                 }
             },
             else => unreachable,
         }
     }
-    try writer.print("{s}\n", .{output.items});
+    try writer.print("{s}\n", .{output[0..output_len]});
 }
 
-fn filter(src: []u8) usize {
+fn filter(src: []u8) []u8 {
     var ptr: usize = 0;
 
     for (src) |c| {
@@ -70,10 +69,10 @@ fn filter(src: []u8) usize {
             ptr += 1;
         }
     }
-    return ptr;
+    return src[0..ptr];
 }
 
-fn makeJumpList(allocator: std.mem.Allocator, src: []const u8, jl: *std.AutoHashMap(usize, usize)) !void {
+fn makeJumpList(allocator: std.mem.Allocator, src: []const u8, jl: *[]usize) !void {
     var stack = std.ArrayList(usize).init(allocator);
     defer stack.deinit();
     for (src, 0..) |c, i| {
@@ -81,8 +80,8 @@ fn makeJumpList(allocator: std.mem.Allocator, src: []const u8, jl: *std.AutoHash
             try stack.append(i);
         } else if (c == ']') {
             const j = stack.pop().?;
-            try jl.put(i, j);
-            try jl.put(j, i);
+            jl.*[i] = j;
+            jl.*[j] = i;
         }
     }
 }

@@ -6,4 +6,4 @@ race:
     @echo
     @cd rust; cargo build --release &>/dev/null;target/release/bfi ../hello.bf
     @echo
-    @cd zig; zig build &>/dev/null; zig-out/bin/bfi ../hello.bf
+    @cd zig; zig build --release=fast && zig-out/bin/bfi ../hello.bf
