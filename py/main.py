@@ -43,9 +43,8 @@ def call_debug(debug, i, ptr, mem, output):
 
 def load_file(p: str):
     with open(p) as f:
-        contents = f.read()
+        src = f.read()
 
-    src = [OPCODES_MAP[c] for c in filter(lambda x: x in LANG, contents)]
     return src
 
 
@@ -144,6 +143,7 @@ if __name__ == "__main__":
         debug_src = list(filter(lambda x: x in LANG, debug_src))
 
     start = time.perf_counter()
+    src = [OPCODES_MAP[c] for c in filter(lambda x: x in LANG, src)]
     jmp = get_jump_table(src)
     if not jmp:
         print("Invalid program. Unbalanced brackets.")
