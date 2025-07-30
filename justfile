@@ -4,7 +4,8 @@ race:
     @echo
     @cd go; go build; ./bfi ../hello.bf
     @echo
-    @cd rust; cargo build --release &>/dev/null;target/release/bfi ../hello.bf
+    @cd rust; cargo build --release &>/dev/null && target/release/bfi ../hello.bf
     @echo
     @cd zig; zig build --release=fast && zig-out/bin/bfi ../hello.bf
     @cd js; deno run -q main ../hello.bf
+    @cd java; mvn package &>/dev/null && java -cp target/bfi-1.0-SNAPSHOT.jar app.App ../hello.bf
