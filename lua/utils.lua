@@ -33,7 +33,7 @@ function Run(src)
     local output = ''
     local jl = make_jl(src)
 
-    while i < #src do
+    while i <= #src do
         local c = src:sub(i, i)
 
         if c == '+' then
