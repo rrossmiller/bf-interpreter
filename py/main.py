@@ -119,8 +119,9 @@ def run(src: list[OpCode], jmp_table: dict, debug=""):
 
     if debug:
         call_debug(debug, i, ptr, mem, output)
-    else:
-        print(output)
+    # else:
+    # print(output)
+    return output
 
 
 if __name__ == "__main__":
@@ -142,11 +143,17 @@ if __name__ == "__main__":
             debug_src = f.read()
         debug_src = list(filter(lambda x: x in LANG, debug_src))
 
-    start = time.perf_counter()
-    src = [OPCODES_MAP[c] for c in filter(lambda x: x in LANG, src)]
-    jmp = get_jump_table(src)
-    if not jmp:
-        print("Invalid program. Unbalanced brackets.")
-        exit(1)
-    run(src, jmp, debug_src)
-    print(f"elapsed: {(time.perf_counter() - start) * 1000 * 1000:.3f}µs")
+    n = 1000
+    elapsed = 0
+    for _ in range(n):
+        start = time.perf_counter()
+        filtered_src = [OPCODES_MAP[c] for c in filter(lambda x: x in LANG, src)]
+        jmp = get_jump_table(filtered_src)
+        if not jmp:
+            print("Invalid program. Unbalanced brackets.")
+            exit(1)
+        output = run(filtered_src, jmp, debug_src)
+        elapsed += time.perf_counter() - start
+
+    print(output)
+    print(f"elapsed: {elapsed / n * 1000 * 1000:.3f}µs")
