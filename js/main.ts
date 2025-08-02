@@ -2,7 +2,6 @@
 import { run } from "./lib.ts";
 
 if (import.meta.main) {
-  console.log();
   console.log("Deno");
   const fp = Deno.args[0];
   const src = (await Deno.readTextFile(fp)).split("");
