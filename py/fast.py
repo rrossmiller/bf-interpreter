@@ -99,7 +99,7 @@ if __name__ == "__main__":
         if not jmp:
             print("Invalid program. Unbalanced brackets.")
             exit(1)
-        output = run(filtered_src, jmp, debug_src)
+        output = run(filtered_src, jmp)
         elapsed += time.perf_counter() - start
 
     elapsed /= n
